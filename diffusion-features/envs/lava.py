@@ -86,7 +86,7 @@ def main():
     env_obs = FullyObsWrapper(env)
     obs, _ = env_obs.reset()
     # enable manual control for testing
-    manual_control = ManualControl(env, seed=42, save_path="../data/lavaenv/manual_control1.txt")
+    manual_control = ManualControl(env, seed=42)
     manual_control.start()
     # print(obs['image'][1, 1, :])
     # print(obs['image'].shape)
