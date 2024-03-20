@@ -1,0 +1,1 @@
+{"positions": [[8, 4], [8, 4], [8, 4], [8, 5], [8, 6], [8, 7], [8, 8]], "actions": [1, 1, 1, 2, 2, 2, 2], "reward": [0, 0, 0, 0, 0, 0, 0.98425], "mission": "Walking away from lava towards the goal."}
