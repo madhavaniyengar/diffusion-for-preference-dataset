@@ -76,26 +76,27 @@ class DiffusionPolicy():
         states = states.to(self.device)
         actions = actions.to(self.device)
         B = actions.shape[0]
-        normalized_random_actions = torch.randn((B, actions.shape[1], actions.shape[2]),
-                                                device=self.device, dtype=self.dtype)
+        # normalized_random_actions = torch.randn((B, actions.shape[1], actions.shape[2]),
+         #                                        device=self.device, dtype=self.dtype)
         noise = torch.rand_like(actions, device=self.device, dtype=self.dtype)
-        noisy_action = self.noise_scheduler.add_noise(actions, noise, timesteps=torch.arange(0, 1000))
-        print(noisy_action)
+        # noisy_action = self.noise_scheduler.add_noise(actions, noise, timesteps=torch.arange(0, 10)).reshape(1, 10, 5)
+        noisy_action = torch.randn((1, 16, 5), device=self.device, dtype=self.dtype)
+        global_cond = torch.zeros((1, 1), device='cuda:0', dtype=torch.float32)
         for timestep in self.noise_scheduler.timesteps:
-            noise_pred = self.noise_pred_net(states, timestep)
+            noise_pred = self.noise_pred_net(noisy_action, timestep, global_cond=global_cond)
             normalized_random_actions = self.noise_scheduler.step(
                         model_output=noise_pred,
                         timestep=int(timestep),
-                        sample=normalized_random_actions,
+                        sample=noisy_action,
                         generator=self.get_generator()
                     ).prev_sample
-            return self.unnormalize(normalized_random_actions)
+        return self.unnormalize(normalized_random_actions)
 
 
 if __name__ == "__main__":
     # Test the DiffusionPolicy class
-    states = torch.tensor([[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]]], dtype=torch.float16)
-    actions = torch.tensor([[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]]], dtype=torch.float16)
+    states = torch.tensor([[1., 2., 3., 4., 5.]], dtype=torch.float32, device = 'cuda:0')
+    actions = torch.tensor([[[1, 2, 3, 4, 5]]], dtype=torch.float32, device = 'cuda:0')
     noise_pred_net = ConditionalUnet1D(
         input_dim=5,
         global_cond_dim=1,
@@ -107,12 +108,12 @@ if __name__ == "__main__":
     scheduler = DDPMScheduler()
     diffusion_policy = DiffusionPolicy(
         noise_pred_net=noise_pred_net,
-        dtype=torch.float16,
+        dtype=torch.float32,
         action_dim=5,
         noise_scheduler=scheduler,
         obs_horizon=2,
-        action_horizon=2,
+        action_horizon=3,
         seed=42,
-        device="cpu"
+        device="cuda:0",
     )
     diffusion_policy.train(states, actions)

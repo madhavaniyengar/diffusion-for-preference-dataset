@@ -79,8 +79,8 @@ class ConditionalResidualBlock1D(nn.Module):
 
         self.blocks = nn.ModuleList(
             [
-                Conv1dBlock(in_channels, out_channels, kernel_size, n_groups=n_groups),
-                Conv1dBlock(out_channels, out_channels, kernel_size, n_groups=n_groups),
+                Conv1dBlock(in_channels, out_channels, kernel_size, n_groups=n_groups,),
+                Conv1dBlock(out_channels, out_channels, kernel_size, n_groups=n_groups,),
             ]
         )
 
@@ -89,12 +89,12 @@ class ConditionalResidualBlock1D(nn.Module):
         cond_channels = out_channels * 2
         self.out_channels = out_channels
         self.cond_encoder = nn.Sequential(
-            nn.Mish(), nn.Linear(cond_dim, cond_channels), nn.Unflatten(-1, (-1, 1))
+            nn.Mish(), nn.Linear(cond_dim, cond_channels,), nn.Unflatten(-1, (-1, 1))
         )
 
         # make sure dimensions compatible
         self.residual_conv = (
-            nn.Conv1d(in_channels, out_channels, 1)
+            nn.Conv1d(in_channels, out_channels, 1,)
             if in_channels != out_channels
             else nn.Identity()
         )
@@ -256,10 +256,11 @@ class ConditionalUnet1D(nn.Module):
         if timesteps.shape == 0:
             timesteps = timesteps[None].to(sample.device)
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        print(timesteps, timesteps.shape)
         timesteps = timesteps.expand(sample.shape[0])
+        timesteps = timesteps.to(sample.device)
 
         global_feature = self.diffusion_step_encoder(timesteps)
+        global_feature = torch.tensor(global_feature, dtype=torch.float32, device = 'cuda:0')
 
         if global_cond is not None:
             global_feature = torch.cat([global_feature, global_cond], axis=-1)
@@ -271,6 +272,7 @@ class ConditionalUnet1D(nn.Module):
             x = resnet2(x, global_feature)
             h.append(x)
             x = downsample(x)
+
 
         for mid_module in self.mid_modules:
             x = mid_module(x, global_feature)
