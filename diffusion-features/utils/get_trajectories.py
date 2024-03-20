@@ -4,13 +4,17 @@ import os
 import json
 from collections import deque
 import matplotlib.pyplot as plt
+import torch
 
 
 def get_trajectories():
     """Get trajectories from the manual control json files.
     and return a tensor of coordinates for the whole batch of trajectories."""
     # read the json files
-    files = os.listdir('../../environment/data/lavaenv')
+    relative_path = '../../environment/data/lavaenv'
+    absolute_path = os.path.abspath(relative_path)
+    print(absolute_path)
+    files = os.listdir(absolute_path)
     # sort the files according to name
     files = sorted(files, key=lambda x: int(x.split('_')[-1]))
     # delete the first and last file
@@ -18,11 +22,18 @@ def get_trajectories():
     files.pop(-1)
     trajectories = {}
     for file in files:
-        with open(f'../../environment/data/lavaenv/{file}/trajectories.json', 'r') as f:
+        relative_path = f'../../environment/data/lavaenv/{file}/trajectories.json'
+        absolute_path = os.path.abspath(relative_path)
+        with open(absolute_path, 'r') as f:
             data = json.load(f)
             #print(file, data)
-            trajectories[file] = data['positions']
-    return trajectories
+            trajectory = np.array(data['positions'])
+            # remove the adjacent position duplicates
+            trajectory = trajectory[~(np.roll(trajectory, 1, axis=0) == trajectory).all(axis=1)]
+            trajectories[file] = trajectory
+    # conver the values of the dictionary to tensors
+    trajectories_tensor = torch.tensor([trajectory for trajectory in trajectories.values()])
+    return trajectories_tensor
 
 
 def visualize_trajectories(trajectories):
