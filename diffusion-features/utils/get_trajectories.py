@@ -12,7 +12,8 @@ def get_trajectories():
     and return a tensor of coordinates for the whole batch of trajectories."""
     # read the json files
     # relative_path = '../../environment/data/lavaenv'
-    absolute_path = '/teamspace/studios/this_studio/diffusion-features/environment/data/lavaenv'
+    # absolute_path = '/teamspace/studios/this_studio/diffusion-features/environment/data/lavaenv'
+    absolute_path = '/Users/sagarpatil/sagar/projects/diffusion-features/environment/data/lavaenv'
     print(absolute_path)
     files = os.listdir(absolute_path)
     # sort the files according to name
@@ -56,7 +57,10 @@ def visualize_trajectories(trajectories):
 
 def visualize_trajectory(trajectory):
     """Visualize the trajectory."""
-    trajectory = trajectory.numpy()
+    if isinstance(trajectory, torch.Tensor):
+        trajectory = trajectory.numpy()
+    elif isinstance(trajectory, np.ndarray):
+        pass
     trajectory = trajectory.squeeze()
     x = [point[0] for point in trajectory]
     y = [point[1] for point in trajectory]
