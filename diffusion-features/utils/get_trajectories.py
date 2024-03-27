@@ -13,7 +13,8 @@ def get_trajectories():
     # read the json files
     # relative_path = '../../environment/data/lavaenv'
     # absolute_path = '/teamspace/studios/this_studio/diffusion-features/environment/data/lavaenv'
-    absolute_path = '/Users/sagarpatil/sagar/projects/diffusion-features/environment/data/lavaenv'
+    # absolute_path = '/Users/sagarpatil/sagar/projects/diffusion-features/environment/data/lavaenv'
+    absolute_path = '/home/miyen/diffusion-features/environment/data/lavaenv'
     print(absolute_path)
     files = os.listdir(absolute_path)
     # sort the files according to name
@@ -55,8 +56,9 @@ def visualize_trajectories(trajectories):
         plt.gca().invert_yaxis()
         plt.savefig(f'../../environment/data/lavaenv/{key}/trajectory.png')
 
+
 def visualize_trajectory(trajectory):
-    """Visualize the trajectory."""
+    """Visualize the trajectory with points colored in the rainbow spectrum."""
     if isinstance(trajectory, torch.Tensor):
         trajectory = trajectory.numpy()
     elif isinstance(trajectory, np.ndarray):
@@ -64,14 +66,25 @@ def visualize_trajectory(trajectory):
     trajectory = trajectory.squeeze()
     x = [point[0] for point in trajectory]
     y = [point[1] for point in trajectory]
-    # plot the figure using matplotlib with origin at the top left
+    
+    # Normalize the colors based on the index of each point in the trajectory
+    colors = np.linspace(0, 1, len(x))
+    
     plt.figure()
-    plt.scatter(x, y)
-    plt.xlim(0, 8)
-    plt.ylim(0, 8)
+    plt.scatter(x, y, c=colors, cmap='rainbow')
+    
+    # Invert y-axis to have origin at top-left, and set the axes scales
     plt.gca().invert_yaxis()
+    
+    # Set the scale of the axes in increments of 1, starting with 0
+    x_ticks = np.arange(int(min(x)), int(max(x)) + 2, 1)
+    y_ticks = np.arange(int(min(y)), int(max(y)) + 2, 1)
+    plt.xticks(x_ticks)
+    plt.yticks(y_ticks)
+    
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.show()
- 
+
 
 def main():
     trajectories = get_trajectories()
