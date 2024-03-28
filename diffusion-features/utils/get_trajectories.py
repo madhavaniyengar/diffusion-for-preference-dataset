@@ -34,6 +34,8 @@ def get_trajectories():
             trajectory = trajectory[~(np.roll(trajectory, 1, axis=0) == trajectory).all(axis=1)]
             trajectories[file] = trajectory
             max = len(trajectory) if len(trajectory) > max else max
+    # if max is odd, make it even
+    max = max + 1 if max % 2 != 0 else max
     for key, trajectory in trajectories.items():
         # pad the trajectories with zeros to make them of the same length
         trajectories[key] = np.pad(trajectory, ((0, max - len(trajectory)), (0, 0)))
@@ -91,5 +93,37 @@ def main():
     trajectories = get_trajectories()
     visualize_trajectories(trajectories)
 
+def discretize_trajectories():
+    # discretize the first 35 trajectories
+    absolute_path = '/Users/sagarpatil/sagar/projects/diffusion-features/environment/data/lavaenv'
+    files = os.listdir(absolute_path)
+    # sort the files according to name
+    files = sorted(files, key=lambda x: int(x.split('_')[-1]))
+    for file in files[:35]:
+        absolute_path_ = os.path.join(absolute_path, file, 'trajectories.json')
+        with open(absolute_path_, 'r') as f:
+            data = json.load(f)
+            trajectory = np.array(data['positions'])
+            # remove the adjacent position duplicates
+            trajectory = trajectory[~(np.roll(trajectory, 1, axis=0) == trajectory).all(axis=1)]
+            new_trajectory = []
+            for k in range(len(trajectory)-1):
+                point1 = trajectory[k]
+                point2 = trajectory[k+1]
+                x1, y1 = point1
+                x2, y2 = point2
+                x = np.linspace(x1, x2, int(np.ceil(np.linalg.norm(point1 - point2)/0.2)))
+                y = np.linspace(y1, y2, int(np.ceil(np.linalg.norm(point1 - point2)/0.2)))
+                for j in range(len(x)):
+                    new_trajectory.append([x[j], y[j]])
+            # remove the adjacent position duplicates
+            new_trajectory = np.array(new_trajectory)
+            new_trajectory = new_trajectory[~(np.roll(new_trajectory, 1, axis=0) == new_trajectory).all(axis=1)]
+            # convert the numpy array to a list
+            new_trajectory = new_trajectory.tolist()
+            data['positions'] = new_trajectory
+            with open(absolute_path_, 'w') as f:
+                json.dump(data, f, default=lambda x: x.tolist() if hasattr(x, "tolist") else x.__dict__)
+
 if __name__ == "__main__":
-    main()
+    discretize_trajectories()

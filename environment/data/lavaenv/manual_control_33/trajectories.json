@@ -1,1 +1,1 @@
-{"positions": [[7, 7], [7, 7], [8, 7], [8, 7], [8, 8]], "actions": [1, 1, 2, 1, 2], "reward": [0, 0, 0, 0, 0.98875], "mission": "Walking away from lava towards the goal."}
+{"positions": [[7.0, 7.0], [7.25, 7.0], [7.5, 7.0], [7.75, 7.0], [8.0, 7.0], [8.0, 7.25], [8.0, 7.5], [8.0, 7.75], [8.0, 8.0]], "actions": [1, 1, 2, 1, 2], "reward": [0, 0, 0, 0, 0.98875], "mission": "Walking away from lava towards the goal."}
