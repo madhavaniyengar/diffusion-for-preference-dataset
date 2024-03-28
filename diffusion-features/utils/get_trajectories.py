@@ -36,6 +36,8 @@ def get_trajectories():
             max = len(trajectory) if len(trajectory) > max else max
     # if max is odd, make it even
     max = max + 1 if max % 2 != 0 else max
+    # get the nearest power of 2
+    max = 2**np.ceil(np.log2(max)).astype(int)
     for key, trajectory in trajectories.items():
         # pad the trajectories with zeros to make them of the same length
         trajectories[key] = np.pad(trajectory, ((0, max - len(trajectory)), (0, 0)))
