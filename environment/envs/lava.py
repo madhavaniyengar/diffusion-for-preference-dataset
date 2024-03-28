@@ -5,8 +5,10 @@ from minigrid.core.constants import COLOR_NAMES
 from minigrid.core.grid import Grid
 from minigrid.core.mission import MissionSpace
 from minigrid.core.world_object import Door, Goal, Key, Wall, Lava
+import sys
+sys.path.append('/Users/sagarpatil/sagar/projects/diffusion-features/')
 # from minigrid.manual_control import ManualControl
-from manual_control import ManualControl
+from environment.envs.manual_control import ManualControl
 from minigrid.minigrid_env import MiniGridEnv
 import gymnasium
 from minigrid.wrappers import FullyObsWrapper
@@ -81,8 +83,120 @@ class LavaEnv(MiniGridEnv):
     def reset(self, seed=None):
         super().reset()
         self.agent_start_pos = (np.random.randint(1, self.size-1), np.random.randint(1, self.size-1))
+
+    def astar_path(self, start, goal):
+        """A* algorithm to find the path between the start and goal positions."""
+        # get the grid
+        grid = self.grid.encode()
+        # get the start and goal positions
+        start = tuple(start)
+        goal = tuple(goal)
+        # get the width and height of the grid
+        print(grid.shape)
+        width, height, _ = grid.shape
+        # get the directions
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        # get the cost of moving in each direction
+        costs = [1, 1, 1, 1]
+        # get the number of directions
+        num_directions = len(directions)
+        # get the number of cells
+        num_cells = width * height
+        # get the start and goal indices
+        start_index = start[0] * width + start[1]
+        goal_index = goal[0] * width + goal[1]
+        # get the heuristic
+        def heuristic(index):
+            x = index // width
+            y = index % width
+            return abs(x - goal[0]) + abs(y - goal[1])
+        # get the g score
+        g_score = np.inf * np.ones(num_cells)
+        g_score[start_index] = 0
+        # get the f score
+        f_score = np.inf * np.ones(num_cells)
+        f_score[start_index] = heuristic(start_index)
+        # get the open set
+        open_set = set([start_index])
+        # get the closed set
+        closed_set = set()
+        # get the came from
+        came_from = np.zeros(num_cells, dtype=int)
+        # get the path
+        path = []
+        # get the current index
+        current_index = start_index
+        # get the current position
+        current = start
+        # get the current f score
+        current_f_score = f_score[current_index]
+        # get the current g score
+        current_g_score = g_score[current_index]
+        # get the current h score
+        current_h_score = current_f_score - current_g_score
+        # get the goal reached flag
+        goal_reached = False
+        # loop until the open set is empty
+        while open_set:
+            # get the current index
+            current_index = min(open_set, key=lambda index: f_score[index])
+            # get the current position
+            current = (current_index // width, current_index % width)
+            # check if the goal is reached
+            if current == goal:
+                goal_reached = True
+                break
+            # remove the current index from the open set
+            open_set.remove(current_index)
+            # add the current index to the closed set
+            closed_set.add(current_index)
+            # loop through the directions
+            for i in range(num_directions):
+                # get the next position
+                next = (current[0] + directions[i][0], current[1] + directions[i][1])
+                # check if the next position is valid
+                if next[0] < 0 or next[0] >= height or next[1] < 0 or next[1] >= width:
+                    continue
+                # get the next index
+                next_index = next[0] * width + next[1]
+                # check if the next index is in the closed set
+                if next_index in closed_set:
+                    continue
+                # get the next g score
+                next_g_score = current_g_score + costs[i]
+                # check if the next index is not in the open set
+                if next_index not in open_set:
+                    open_set.add(next_index)
+                # check if the next g score is greater than the next index g score
+                if next_g_score >= g_score[next_index]:
+                    continue
+                # update the g score
+                g_score[next_index] = next_g_score
+                # update the f score
+                f_score[next_index] = g_score[next_index] + heuristic(next_index)
+                # update the came from
+                came_from[next_index] = current_index
+        # check if the goal is reached
+        if goal_reached:
+            # get the current index
+            current_index = goal_index
+            # loop until the current index is the start index
+            while current_index != start_index:
+                # get the current position
+                current = (current_index // width, current_index % width)
+                # add the current position to the path
+                path.append(current)
+                # get the current index
+                current_index = came_from[current_index]
+            # add the start position to the path
+            path.append(start)
+            # reverse the path
+            path = path[::-1]
+        return path
         
-        
+    def distance(self, start, goal):
+        """Calculate the distance between the start and goal positions."""
+        return abs(start[0] - goal[0]) + abs(start[1] - goal[1])
 
 def main():
     #env = SimpleEnv(render_mode="human")
