@@ -6,6 +6,24 @@ from collections import deque
 import matplotlib.pyplot as plt
 import torch
 
+def pad_trajectories(trajectories, max_length):
+    current_length = len(trajectories)
+    
+    # Check if padding is needed
+    if current_length >= max_length:
+        return trajectories[:max_length]
+    
+    pad_size = max_length - current_length
+    begin_pad_size = pad_size // 2
+    end_pad_size = pad_size - begin_pad_size
+    
+    begin_pad = [list(trajectories[0])] * begin_pad_size
+    end_pad = [list(trajectories[-1])] * end_pad_size
+    
+    padded_trajectories = begin_pad + list(trajectories) + end_pad
+    
+    return padded_trajectories
+
 
 def get_trajectories():
     """Get trajectories from the manual control json files.
@@ -13,8 +31,8 @@ def get_trajectories():
     # read the json files
     # relative_path = '../../environment/data/lavaenv'
     # absolute_path = '/teamspace/studios/this_studio/diffusion-features/environment/data/lavaenv'
-    absolute_path = '/Users/sagarpatil/sagar/projects/diffusion-features/environment/data/lavaenv'
-    # absolute_path = '/home/miyen/diffusion-features/environment/data/lavaenv'
+    # absolute_path = '/Users/sagarpatil/sagar/projects/diffusion-features/environment/data/lavaenv'
+    absolute_path = '/home/miyen/diffusion-features/environment/data/lavaenv'
     print(absolute_path)
     files = os.listdir(absolute_path)
     # sort the files according to name
@@ -40,7 +58,10 @@ def get_trajectories():
     max = 2**np.ceil(np.log2(max)).astype(int)
     for key, trajectory in trajectories.items():
         # pad the trajectories with zeros to make them of the same length
-        trajectories[key] = np.pad(trajectory, ((0, max - len(trajectory)), (0, 0)))
+        # trajectories[key] = np.pad(trajectory, ((0, max - len(trajectory)), (0, 0)))
+        # pad the trajectories with the last point to make them of the same length
+        # trajectories[key] = np.pad(trajectory, ((0, max - len(trajectory)), (0, 0)), 'edge')
+        trajectories[key] = pad_trajectories(trajectory, max)
     # conver the values of the dictionary to tensors
     trajectories_tensor = torch.tensor([trajectory for trajectory in trajectories.values()])
     print(trajectories_tensor.shape)
