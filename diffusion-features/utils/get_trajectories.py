@@ -31,8 +31,8 @@ def get_trajectories():
     # read the json files
     # relative_path = '../../environment/data/lavaenv'
     # absolute_path = '/teamspace/studios/this_studio/diffusion-features/environment/data/lavaenv'
-    # absolute_path = '/Users/sagarpatil/sagar/projects/diffusion-features/environment/data/lavaenv'
-    absolute_path = '/home/miyen/diffusion-features/environment/data/lavaenv'
+    absolute_path = '/Users/sagarpatil/sagar/projects/diffusion-features/environment/data/lavaenv'
+    # absolute_path = '/home/miyen/diffusion-features/environment/data/lavaenv'
     print(absolute_path)
     files = os.listdir(absolute_path)
     # sort the files according to name

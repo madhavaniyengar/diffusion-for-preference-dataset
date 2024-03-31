@@ -22,7 +22,7 @@ def save_environment_image(env, save_path):
     pygame_image = pygame.surfarray.make_surface(image_array.transpose(1, 0, 2))
     pygame.image.save(pygame_image, f"{save_path}/start_state_image.png")
 
-def save_observations(observations: dict, save_path: str):
+def save_observations(observations: dict, save_path: str, folder_name: str = "manual_control_with_feature"):
     """Save observations and optionally an environment start state image, then return new save path."""
     print('in save observations')
     if save_path:
@@ -31,15 +31,16 @@ def save_observations(observations: dict, save_path: str):
         with open(f"{save_path}/trajectories.json", 'w') as f:
             print(f'writing to file {save_path}/trajectories.json')
             json.dump(observations, f, default=lambda x: x.tolist() if hasattr(x, "tolist") else x.__dict__)
-    
-    new_index = len(os.listdir("diffusion_features/data/lavaenv"))
+            
+    check_folder_existence(f"environment/data/{folder_name}")
+    new_index = len(os.listdir(f"environment/data/{folder_name}"))
     print(f'returning new save path with index {new_index}')
-    return {"positions": [], "actions": [], "reward": [], "mission": ""}, f"diffusion_features/data/lavaenv/manual_control_{new_index}"
+    return {"positions": [], "actions": [], "reward": [], "condition": []}, f"environment/data/{folder_name}/manual_control_{new_index}"
 
 class ManualControl(ManualControl):
-    def __init__(self, env: MiniGridEnv, seed: int) -> None:
+    def __init__(self, env: MiniGridEnv, seed: int, folder_name) -> None:
         super().__init__(env, seed)
-        self.observations, self.save_path = save_observations(None, None)  # Pass the environment for initial image save
+        self.observations, self.save_path = save_observations(None, None, folder_name)  # Pass the environment for initial image save
         save_environment_image(self.env, self.save_path)
 
     def step(self, action: Actions):
@@ -51,7 +52,7 @@ class ManualControl(ManualControl):
         print(f"step={self.env.step_count}, reward={reward:.2f}")
         if terminated or truncated:
             print("terminated!" if terminated else "truncated!")
-            self.observations['mission'] = obs['mission']
+            self.observations['condition'] = [self.env.goal_pos, self.env.lava_pos, self.env.key_pos]
             self.observations, self.save_path = save_observations(self.observations, self.save_path)  # Image save not needed here
             self.env.reset()
             save_environment_image(self.env, self.save_path)

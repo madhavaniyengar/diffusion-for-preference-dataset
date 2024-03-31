@@ -33,6 +33,15 @@ class LavaEnv(MiniGridEnv):
         self.size = size
 
         mission_space = MissionSpace(mission_func=self._gen_mission)
+        print("Enter the start position of the agent: ")
+        self.start_pos = input()
+        print("Enter the goal position: ")
+        self.goal_pos = input()
+        print("Enter the lava position: ")
+        self.lava_pos = input()
+        print("Enter the key position: ")
+        self.key_pos = input()
+        
 
         if max_steps is None:
             max_steps = 4 * size**2
@@ -66,10 +75,21 @@ class LavaEnv(MiniGridEnv):
         # self.grid.set(3, 6, Key(COLOR_NAMES[0]))
 
         # Place lava randomly in the environment
-        random_coords = np.random.randint(1, width-1, size=2)
-        self.put_obj(Lava(), random_coords[0], random_coords[1])
-        # Place a goal square in the bottom-right corner
-        self.put_obj(Goal(), width - 2, height - 2)
+
+        # prompt the user for position inputs
+        # convert them all to a list
+        start_pos = list(map(int, self.start_pos.split()))
+        goal_pos = list(map(int, self.goal_pos.split()))
+        lava_pos = list(map(int, self.lava_pos.split()))
+        key_pos = list(map(int, self.key_pos.split()))
+        
+        # print(start_pos, goal_pos, lava_pos, key_pos)
+        
+        # put all obejcts in the grid
+        self.agent_start_pos = (start_pos[0], start_pos[1])
+        self.put_obj(Key(COLOR_NAMES[0]), key_pos[0], key_pos[1])
+        self.put_obj(Lava(), lava_pos[0], lava_pos[1])
+        self.put_obj(Goal(), goal_pos[0], goal_pos[1])
 
         # Place the agent
         if self.agent_start_pos is not None:
@@ -82,7 +102,7 @@ class LavaEnv(MiniGridEnv):
     
     def reset(self, seed=None):
         super().reset()
-        self.agent_start_pos = (np.random.randint(1, self.size-1), np.random.randint(1, self.size-1))
+        # self.agent_start_pos = (np.random.randint(1, self.size-1), np.random.randint(1, self.size-1))
 
     def astar_path(self, start, goal):
         """A* algorithm to find the path between the start and goal positions."""
@@ -207,7 +227,7 @@ def main():
     # obs, _ = env_obs.reset()
     env.reset()
     # enable manual control for testing
-    manual_control = ManualControl(env, seed=42)
+    manual_control = ManualControl(env, seed=42, folder_name="with_features_1")
     manual_control.start()
     # print(obs['image'][1, 1, :])
     # print(obs['image'].shape)
