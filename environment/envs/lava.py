@@ -227,7 +227,7 @@ def main():
     # obs, _ = env_obs.reset()
     env.reset()
     # enable manual control for testing
-    manual_control = ManualControl(env, seed=42, folder_name="with_features_1")
+    manual_control = ManualControl(env, seed=42, folder_name="lava_key_sagar_demos")
     manual_control.start()
     # print(obs['image'][1, 1, :])
     # print(obs['image'].shape)

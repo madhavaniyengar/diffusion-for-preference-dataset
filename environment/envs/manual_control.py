@@ -42,6 +42,7 @@ class ManualControl(ManualControl):
         super().__init__(env, seed)
         self.observations, self.save_path = save_observations(None, None, folder_name)  # Pass the environment for initial image save
         save_environment_image(self.env, self.save_path)
+        self.folder_name = folder_name
 
     def step(self, action: Actions):
         obs, reward, terminated, truncated, _ = self.env.step(action)
@@ -53,7 +54,7 @@ class ManualControl(ManualControl):
         if terminated or truncated:
             print("terminated!" if terminated else "truncated!")
             self.observations['condition'] = [self.env.goal_pos, self.env.lava_pos, self.env.key_pos]
-            self.observations, self.save_path = save_observations(self.observations, self.save_path)  # Image save not needed here
+            self.observations, self.save_path = save_observations(self.observations, self.save_path, self.folder_name)  # Image save not needed here
             self.env.reset()
             save_environment_image(self.env, self.save_path)
         else:
