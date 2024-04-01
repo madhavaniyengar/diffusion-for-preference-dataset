@@ -1,0 +1,21 @@
+params:
+  epoch: 300
+  batch_size: 32
+  lr: 0.001
+  timesteps: 5
+  num_trajectories: 50
+  trajectory_len: 32
+model_params:
+  input_dim: 2
+  down_dims:
+  - 16
+  - 32
+  - 64
+  output_dim: 2
+  global_cond_dim: 0
+  kernel_size: 3
+  n_groups: 1
+  scheduler: linear
+paths:
+  data_path: ${hydra:runtime.cwd}/../../environment/data/lavaenv
+  save_path: ${hydra:runtime.cwd}/../../results/lavaenv
