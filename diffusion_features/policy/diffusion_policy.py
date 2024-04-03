@@ -16,7 +16,7 @@ import numpy as np
 from diffusion_features.utils.schedulers import *
 from diffusion_features.algo.diffusion_utils import ConditionalUnet1D
 from torch.optim import Adam
-from diffusion_features.utils.get_trajectories import get_trajectories
+from diffusion_features.utils.get_trajectories import get_trajectories, discretize
 
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader
@@ -24,9 +24,10 @@ import hydra
 
 
 class Diffusion_policy():
-    def __init__(self, timesteps, scheduler) -> None:
+    def __init__(self, timesteps:int, scheduler:str, condition_type:str) -> None:
         self.timesteps = timesteps
         self.scheduler = scheduler
+        self.condition_type = condition_type
         self.calculate_params()
         
     def extract(self, a, t, x_shape)->torch.Tensor:
@@ -146,45 +147,59 @@ class Diffusion_policy():
             arr.append(remainder)
         return arr
 
+    def get_condition(self, trajectories:torch.Tensor, conditions:torch.Tensor)->torch.Tensor:
+        """"
+        Returns the condition tensor
+        """
+        if self.condition_type == "start_end":
+            start_states = trajectories[:, 0, :]
+            end_states = conditions[:,0, :]
+            condition = torch.cat((start_states, end_states), axis=1)
+        elif self.condition_type == "start":
+            condition = trajectories[:, 0, :]
+        elif self.condition_type == "end":
+            condition = conditions[:, 0, :]
+        elif self.condition_type == "target_end":
+            end_states = conditions[:, 0, :]
+            target_states = conditions[:, 2, :]
+            condition = torch.cat((end_states, target_states), axis=1)
+        else:
+            raise NotImplementedError("Condition type not implemented")
+        return condition
 
-    def train(self, model, optimizer, epochs, batch_size, trajectories)->None:
+
+
+    def train(self, model, optimizer, epochs, batch_size, train_data)->None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model.to(device)
         # channels = 1
-        dataloader = DataLoader(trajectories, batch_size=batch_size, shuffle=True)
+        dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
         for epoch in range(epochs):
             loss_arr = []
-            for step, batch in enumerate(dataloader):
+            for batch in dataloader:
                 optimizer.zero_grad()
-                
-                
-                b = batch.shape[0]
-                batch = batch.to(device)
+                b = len(batch[0])
+                trajectories = torch.tensor(batch[0]).to(device)
+                conditions = torch.tensor(batch[1]).to(device)
                 # batch shape: (B, T, C)
                 # print('input shape pre reshape', batch.shape)
 
                 # batch = batch.reshape(b, channels, batch.shape[1], batch.shape[2])
                 
-                # normalize the batch to [-1, 1]
-                batch = (batch / 8) * 2 - 1
+                # normalize the trajectories to [-1, 1]
+                trajectories = (trajectories / 8) * 2 - 1
                 
                 # generate conditioning based on start and end states
-                start_states = batch[:, 0, :]
-                end_states = batch[:, -1, :]
-                condition = torch.cat((start_states, end_states), axis=1)
+                # condition = torch.cat((start_states, end_states), axis=1)
+                condition = self.get_condition(trajectories, conditions)
                 # print(condition)
-                condition = None
-                # print('condition shape', condition.shape)
-                
-                # print("batch: ", torch.mean(batch[4]), torch.std(batch[4]))
-                # print("Max and min", torch.max(batch[4]), torch.min(batch[4]))
 
                 # Algorithm 1 line 3: sample t uniformally for every example in the batch
                 t = torch.randint(0, self.timesteps, (batch_size,), device=device).long()
                 if b != batch_size:
                     continue
-                loss = self.p_losses(model, batch, t, loss_type="huber", condition=condition)
+                loss = self.p_losses(model, trajectories, t, loss_type="huber", condition=condition)
 
                 # if step % 100 == 0:
                 # print("Loss:", loss.item())
@@ -206,14 +221,20 @@ class Diffusion_policy():
     def sample(self, num_samples, trajectory_length, model, \
                             output_dim, save_path, global_cond=None) -> None:
         save_path = os.path.abspath(save_path)
+        # check the number of runs in the save path
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        files = os.listdir(save_path)
+        current_index = len(files)
+        save_path = os.path.join(save_path, f"run_{current_index}")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
         # check if the range of global_cond is within -1 and 1
         if global_cond is not None:
             if global_cond.max() > 1 or global_cond.min() < -1:
                 global_cond = (global_cond / 8) * 2 - 1
         samples = self.sample_trajectories(model, trajectory_length, batch_size=num_samples,\
                                             output_dim=output_dim, global_cond=global_cond)
-        print(len(samples))
-        print(samples[0].shape)
         sample_ = samples[self.timesteps-1]
         for j in range(sample_.shape[0]):
             sample_[j] = ((sample_[j] + 1) / 2) * 8
@@ -228,26 +249,28 @@ class Diffusion_policy():
             # Invert y-axis to have origin at top-left, and set the axes scales
             plt.gca().invert_yaxis()
             
-            # Set the scale of the axes in increments of 1, starting with 0
-            x_ticks = np.arange(int(min(x)), int(max(x)) + 2, 1)
-            y_ticks = np.arange(int(min(y)), int(max(y)) + 2, 1)
-            plt.xticks(x_ticks)
-            plt.yticks(y_ticks)
-            
+            xlim = 10
+            ylim = 10
+            plt.xlim(-1*xlim, xlim)
+            plt.ylim(-1*ylim, ylim)
+            # write the condition data on the plot
+            if global_cond is not None:
+                # convert the global_cond to the original scale
+                cond = ((global_cond[j] + 1) / 2) * 8
+                # place the text on the top right corner
+                plt.text(9, 9, f"Global Condition: {cond}", fontsize=12, ha='right', va='top')
             plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-            figure_path = os.path.join(save_path, f'trajectory_{self.timesteps}_{trajectory_length}_{j}.png')
+            figure_path = os.path.join(save_path, f'trajectory_{j}.png')
             plt.savefig(figure_path)
-
-
-        return samples
+        return samples, save_path
 
 
 @hydra.main(config_path="../conf", config_name="minigrid_conf")
 def main(cfg):
-    print(cfg)
     epochs = cfg.params.epoch
     batch_size = cfg.params.batch_size
     lr = cfg.params.lr
+    discretization = cfg.params.discretization
     timesteps = cfg.params.timesteps
     if cfg.model_params.scheduler == "linear":
         scheduler = linear_beta_schedule
@@ -260,16 +283,32 @@ def main(cfg):
     else:
         raise NotImplementedError("Scheduler not implemented")
     # trajectories = trajectories[0:32]
-    trajectories = get_trajectories(cfg.paths.data_path)
-    trajectories = torch.tensor(trajectories, dtype=torch.float32)
+    # get the pretrain data
+    pretrain_trajectories_conds = get_trajectories(cfg.paths.pretrain_data_path, 'pretrain')
+    pretrain_trajectories = [pretrain_trajectories_conds[key][0] for key in pretrain_trajectories_conds.keys()]
+    pretrain_trajectories = discretize(pretrain_trajectories, discretization, cfg.params.trajectory_len)
+    pretrain_conditions = [pretrain_trajectories_conds[key][1] for key in pretrain_trajectories_conds.keys()]
+    pretrain_conditions = torch.tensor(pretrain_conditions, dtype=torch.float32)
+    pretrain_data = torch.utils.data.TensorDataset(pretrain_trajectories, pretrain_conditions)
+    
+    trajectories_conds = get_trajectories(cfg.paths.data_path, 'train')
+    trajectories = [trajectories_conds[key][0] for key in trajectories_conds.keys()]
+    trajectories = discretize(trajectories, discretization, cfg.params.trajectory_len)
+    conditions = [trajectories_conds[key][1] for key in trajectories_conds.keys()]
+    conditions = torch.tensor(conditions, dtype=torch.float32)
+    trajectories = trajectories[:cfg.params.num_trajectories]
+    conditions = conditions[:cfg.params.num_trajectories]
+    trajectories = trajectories[:, :cfg.params.trajectory_len, :]
+    trajectories_size = trajectories.shape
+    # print(conditions_tensor)
+    train_data = torch.utils.data.TensorDataset(trajectories, conditions)
+    # print the shape of the train_data
+
     # x_start = trajectories[30].unsqueeze(0)
     # x_start = x_start.float()
     # print(x_start)
 
-    trajectories = trajectories[:cfg.params.num_trajectories]
-    # reduce the trajectory size to 16
-    trajectories = trajectories[:, :cfg.params.trajectory_len, :]
-    trajectories_size = trajectories.shape
+     # reduce the trajectory size to 16
     # model = Unet(
     #     dim=trajectories_size[1],
     #     channels=channels,
@@ -287,10 +326,21 @@ def main(cfg):
     )
 
     optimizer = Adam(model.parameters(), lr=lr)
-    policy = Diffusion_policy(timesteps, scheduler=scheduler)
-    policy.train(model, optimizer, epochs, batch_size, trajectories)
-    policy.sample(cfg.params.num_samples, cfg.params.trajectory_len,\
-                                model, cfg.model_params.output_dim, cfg.paths.save_path)
+    policy = Diffusion_policy(timesteps, scheduler=scheduler, condition_type=cfg.model_params.condition_type)
+    # first pretrain the model
+    policy.train(model, optimizer, 30, 128, train_data=pretrain_data)
+    # then train the model on the main data
+    policy.train(model, optimizer, epochs, batch_size, train_data=train_data)
+    # take cfg.params.num_samples conditioning samples
+    global_conds = conditions[:cfg.params.num_samples]    
+    global_conds = policy.get_condition(trajectories[:cfg.params.num_samples], global_conds)
+    _, save_path = policy.sample(cfg.params.num_samples, cfg.params.trajectory_len,\
+                                model, cfg.model_params.output_dim, cfg.paths.save_path, global_cond=global_conds)
+    # save the cfg file in the save path
+    with open(os.path.join(save_path, "config.yaml"), "w") as f:
+        # write the configuration file
+        for key, value in cfg.items():
+            f.write(f"{key}: {value}\n")
 
 if __name__=="__main__":
     main()
