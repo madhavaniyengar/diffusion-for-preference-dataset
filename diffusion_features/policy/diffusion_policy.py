@@ -331,14 +331,15 @@ def main(cfg):
     optimizer = Adam(model.parameters(), lr=lr)
     policy = Diffusion_policy(timesteps, scheduler=scheduler, condition_type=cfg.model_params.condition_type)
     ############################# PRE-TRAINING ############################
-    policy.train(model, optimizer, 100, 128, train_data=pretrain_data)
+    # policy.train(model, optimizer, 100, 128, train_data=pretrain_data)
     ############################# TRAINING ############################
     policy.train(model, optimizer, epochs, batch_size, train_data=train_data)
     ############################# SAMPLING ############################
     # global_conds = conditions[:cfg.params.num_samples]    
     # global_conds = policy.get_condition(trajectories[:cfg.params.num_samples], global_conds)
-    global_conds = [[1, 1], [8, 8]]
-    _, save_path = policy.sample(cfg.params.num_samples, cfg.params.trajectory_len,\
+    # global_conds = [[1, 1], [8, 8]]
+    global_conds = torch.tensor([[1, 1, 8, 8]], dtype=torch.float32)
+    _, save_path = policy.sample(1, cfg.params.trajectory_len,\
                                 model, cfg.model_params.output_dim, cfg.paths.save_path, global_cond=global_conds)
     # save the cfg file in the save path
     with open(os.path.join(save_path, "config.yaml"), "w") as f:
