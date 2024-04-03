@@ -119,7 +119,6 @@ class ConditionalResidualBlock1D(nn.Module):
         out = out + self.residual_conv(x)
         return out
 
-
 class ConditionalUnet1D(nn.Module):
     def __init__(
         self,

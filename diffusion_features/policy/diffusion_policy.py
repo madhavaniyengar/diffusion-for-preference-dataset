@@ -79,6 +79,8 @@ class Diffusion_policy():
             noise = torch.randn_like(x_start)
             
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
+        # set the initial condition of the noisy image to the initial trajectory position
+        x_noisy[:, 0, :] = x_start[:, 0, :]
         # print("x_noisy", x_noisy.shape)
         predicted_noise = denoise_model(x_noisy, t, global_cond=condition)
 
@@ -283,7 +285,7 @@ def main(cfg):
     else:
         raise NotImplementedError("Scheduler not implemented")
     # trajectories = trajectories[0:32]
-    # get the pretrain data
+    ######################## PRETRAIN DATA ############################
     pretrain_trajectories_conds = get_trajectories(cfg.paths.pretrain_data_path, 'pretrain')
     pretrain_trajectories = [pretrain_trajectories_conds[key][0] for key in pretrain_trajectories_conds.keys()]
     pretrain_trajectories = discretize(pretrain_trajectories, discretization, cfg.params.trajectory_len)
@@ -291,6 +293,7 @@ def main(cfg):
     pretrain_conditions = torch.tensor(pretrain_conditions, dtype=torch.float32)
     pretrain_data = torch.utils.data.TensorDataset(pretrain_trajectories, pretrain_conditions)
     
+    ######################## MAIN DATA ############################
     trajectories_conds = get_trajectories(cfg.paths.data_path, 'train')
     trajectories = [trajectories_conds[key][0] for key in trajectories_conds.keys()]
     trajectories = discretize(trajectories, discretization, cfg.params.trajectory_len)
@@ -327,13 +330,14 @@ def main(cfg):
 
     optimizer = Adam(model.parameters(), lr=lr)
     policy = Diffusion_policy(timesteps, scheduler=scheduler, condition_type=cfg.model_params.condition_type)
-    # first pretrain the model
-    policy.train(model, optimizer, 30, 128, train_data=pretrain_data)
-    # then train the model on the main data
+    ############################# PRE-TRAINING ############################
+    policy.train(model, optimizer, 100, 128, train_data=pretrain_data)
+    ############################# TRAINING ############################
     policy.train(model, optimizer, epochs, batch_size, train_data=train_data)
-    # take cfg.params.num_samples conditioning samples
-    global_conds = conditions[:cfg.params.num_samples]    
-    global_conds = policy.get_condition(trajectories[:cfg.params.num_samples], global_conds)
+    ############################# SAMPLING ############################
+    # global_conds = conditions[:cfg.params.num_samples]    
+    # global_conds = policy.get_condition(trajectories[:cfg.params.num_samples], global_conds)
+    global_conds = [[1, 1], [8, 8]]
     _, save_path = policy.sample(cfg.params.num_samples, cfg.params.trajectory_len,\
                                 model, cfg.model_params.output_dim, cfg.paths.save_path, global_cond=global_conds)
     # save the cfg file in the save path

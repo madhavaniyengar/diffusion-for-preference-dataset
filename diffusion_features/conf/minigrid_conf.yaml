@@ -16,7 +16,7 @@ model_params:
       kernel_size: 3
       n_groups: 1
       scheduler: "linear"
-      condition_type: "target_end"
+      condition_type: "start_end"
 
 paths:
       pretrain_data_path: ${hydra:runtime.cwd}/../../environment/data/lavaenv

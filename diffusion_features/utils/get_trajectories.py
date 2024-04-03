@@ -64,8 +64,9 @@ def get_trajectories(data_path: str, train_type: str):
                 conditions[file] = condition
             elif train_type == 'pretrain':
                 # put the conditions as zeros
-                conditions[file] = np.zeros((3, 2))
-
+                 condition = np.zeros((3, 2))
+                 condition[0, :] = trajectory[-1]
+                 conditions[file] = condition
             trajectories[file] = trajectory
             max = len(trajectory) if len(trajectory) > max else max
     # if max is odd, make it even
