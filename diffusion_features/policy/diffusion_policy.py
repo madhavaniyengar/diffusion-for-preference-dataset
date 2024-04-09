@@ -337,8 +337,9 @@ def main(cfg):
     ############################# SAMPLING ############################
     # global_conds = conditions[:cfg.params.num_samples]    
     # global_conds = policy.get_condition(trajectories[:cfg.params.num_samples], global_conds)
-    global_conds = [[1, 1], [8, 8]]
-    _, save_path = policy.sample(cfg.params.num_samples, cfg.params.trajectory_len,\
+    # global_conds = [[1, 1], [8, 8]]
+    global_conds = torch.tensor([[1, 1, 8, 8]], dtype=torch.float32)
+    _, save_path = policy.sample(1, cfg.params.trajectory_len,\
                                 model, cfg.model_params.output_dim, cfg.paths.save_path, global_cond=global_conds)
     # save the cfg file in the save path
     with open(os.path.join(save_path, "config.yaml"), "w") as f:

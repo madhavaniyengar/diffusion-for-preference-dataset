@@ -1,5 +1,5 @@
 params:
-      epoch: 300
+      epoch: 110
       batch_size: 8
       lr: 0.001
       timesteps: 500
