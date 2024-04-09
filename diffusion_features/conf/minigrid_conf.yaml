@@ -20,5 +20,6 @@ model_params:
 
 paths:
       pretrain_data_path: ${hydra:runtime.cwd}/../../environment/data/lavaenv
-      data_path: ${hydra:runtime.cwd}/../../environment/data/lava_key_sagar_demos
+      # data_path: ${hydra:runtime.cwd}/../../environment/data/lava_key_sagar_demos
+      data_path: ${hydra:runtime.cwd}/../../environment/data/lavaenv
       save_path: ${hydra:runtime.cwd}/../../results/lavaenv

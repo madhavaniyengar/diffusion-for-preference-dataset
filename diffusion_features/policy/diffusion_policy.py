@@ -331,7 +331,7 @@ def main(cfg):
     optimizer = Adam(model.parameters(), lr=lr)
     policy = Diffusion_policy(timesteps, scheduler=scheduler, condition_type=cfg.model_params.condition_type)
     ############################# PRE-TRAINING ############################
-    policy.train(model, optimizer, 100, 128, train_data=pretrain_data)
+    # policy.train(model, optimizer, 100, 128, train_data=pretrain_data)
     ############################# TRAINING ############################
     policy.train(model, optimizer, epochs, batch_size, train_data=train_data)
     ############################# SAMPLING ############################
