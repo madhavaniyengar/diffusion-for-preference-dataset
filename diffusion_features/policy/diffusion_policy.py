@@ -81,6 +81,8 @@ class Diffusion_policy():
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         # set the initial condition of the noisy image to the initial trajectory position
         x_noisy[:, 0, :] = x_start[:, 0, :]
+        # set the last condition of the noisy image to the last trajectory position
+        x_noisy[:, -1, :] = x_start[:, -1, :]
         # print("x_noisy", x_noisy.shape)
         predicted_noise = denoise_model(x_noisy, t, global_cond=condition)
 
@@ -119,12 +121,19 @@ class Diffusion_policy():
 
     # Algorithm 2 but save all images:
     @torch.no_grad()
-    def p_sample_loop(self, model, shape, global_cond=None)->list:
+    def p_sample_loop(self, model, shape, global_cond=None, start_pos=None, end_pos=None)->list:
         device = next(model.parameters()).device
 
         b = shape[0]
         # start from pure noise (for each example in the batch)
         img = torch.randn(shape, device=device)
+        # set the initial condition of the noisy image to the initial trajectory position
+        if start_pos is not None:
+            start_pos = torch.tensor(start_pos, dtype=torch.float32, device=device)
+            img[:, 0, :] = start_pos
+        if end_pos is not None:
+            end_pos = torch.tensor(end_pos, dtype=torch.float32, device=device)
+            img[:, -1, :] = end_pos
         imgs = []
 
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
@@ -137,8 +146,8 @@ class Diffusion_policy():
         return self.p_sample_loop(model, shape=(batch_size, channels, image_size, image_size))
 
     @torch.no_grad()
-    def sample_trajectories(self, model, traj_size, batch_size=16, output_dim = 2, global_cond=None,):
-        return self.p_sample_loop(model, shape=(batch_size, traj_size, output_dim), global_cond=global_cond)
+    def sample_trajectories(self, model, traj_size, batch_size=16, output_dim = 2, global_cond=None, start_pos=None, end_pos=None):
+        return self.p_sample_loop(model, shape=(batch_size, traj_size, output_dim), global_cond=global_cond, start_pos=start_pos, end_pos=end_pos)
 
 
     def num_to_groups(self, num, divisor)->list:
@@ -165,6 +174,9 @@ class Diffusion_policy():
             end_states = conditions[:, 0, :]
             target_states = conditions[:, 2, :]
             condition = torch.cat((end_states, target_states), axis=1)
+        elif self.condition_type == "mid":
+            # set the condition to the mid point of the trajectory
+            condition = trajectories[:, trajectories.shape[1]//2, :]
         else:
             raise NotImplementedError("Condition type not implemented")
         return condition
@@ -221,12 +233,14 @@ class Diffusion_policy():
             #   save_image(all_images, str(results_folder / f'sample-{milestone}.png'), nrow = 6)
     
     def sample(self, num_samples, trajectory_length, model, \
-                            output_dim, save_path, global_cond=None) -> None:
+                            output_dim, save_path, global_cond=None, start_pos=None, end_pos=None) -> None:
         save_path = os.path.abspath(save_path)
         # check the number of runs in the save path
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         files = os.listdir(save_path)
+        # remove .DS_Store file
+        files = [file for file in files if file != '.DS_Store']
         current_index = len(files)
         save_path = os.path.join(save_path, f"run_{current_index}")
         if not os.path.exists(save_path):
@@ -236,7 +250,7 @@ class Diffusion_policy():
             if global_cond.max() > 1 or global_cond.min() < -1:
                 global_cond = (global_cond / 8) * 2 - 1
         samples = self.sample_trajectories(model, trajectory_length, batch_size=num_samples,\
-                                            output_dim=output_dim, global_cond=global_cond)
+                                            output_dim=output_dim, global_cond=global_cond, start_pos=start_pos, end_pos=end_pos)
         sample_ = samples[self.timesteps-1]
         for j in range(sample_.shape[0]):
             sample_[j] = ((sample_[j] + 1) / 2) * 8
@@ -331,16 +345,31 @@ def main(cfg):
     optimizer = Adam(model.parameters(), lr=lr)
     policy = Diffusion_policy(timesteps, scheduler=scheduler, condition_type=cfg.model_params.condition_type)
     ############################# PRE-TRAINING ############################
-    # policy.train(model, optimizer, 100, 128, train_data=pretrain_data)
+    policy.train(model, optimizer, 100, 128, train_data=pretrain_data)
     ############################# TRAINING ############################
-    policy.train(model, optimizer, epochs, batch_size, train_data=train_data)
+    # policy.train(model, optimizer, epochs, batch_size, train_data=train_data)
     ############################# SAMPLING ############################
     # global_conds = conditions[:cfg.params.num_samples]    
     # global_conds = policy.get_condition(trajectories[:cfg.params.num_samples], global_conds)
     # global_conds = [[1, 1], [8, 8]]
-    global_conds = torch.tensor([[1, 1, 8, 8]], dtype=torch.float32)
-    _, save_path = policy.sample(1, cfg.params.trajectory_len,\
-                                model, cfg.model_params.output_dim, cfg.paths.save_path, global_cond=global_conds)
+    # global_conds = torch.tensor([[1, 1, 8, 8]], dtype=torch.float32)
+    global_conds = torch.tensor([[4, 4]], dtype=torch.float32)
+    if cfg.sampling_params.start_position != None and cfg.sampling_params.end_position != None:
+        _, save_path = policy.sample(cfg.sampling_params.num_samples, cfg.params.trajectory_len,\
+                                model, cfg.model_params.output_dim, cfg.paths.save_path, \
+                                global_cond=global_conds, start_pos = cfg.sampling_params.start_position, \
+                                end_pos = cfg.sampling_params.end_position)
+    elif cfg.sampling_params.start_position != None:
+        _, save_path = policy.sample(cfg.sampling_params.num_samples, cfg.params.trajectory_len,\
+                                model, cfg.model_params.output_dim, cfg.paths.save_path, \
+                                global_cond=global_conds, start_pos = cfg.sampling_params.start_position)
+    elif cfg.sampling_params.end_position != None:
+        _, save_path = policy.sample(cfg.sampling_params.num_samples, cfg.params.trajectory_len,\
+                                model, cfg.model_params.output_dim, cfg.paths.save_path, \
+                                global_cond=global_conds, end_pos = cfg.sampling_params.end_position)
+    else:
+        _, save_path = policy.sample(cfg.sampling_params.num_samples, cfg.params.trajectory_len,\
+                                    model, cfg.model_params.output_dim, cfg.paths.save_path, global_cond=global_conds)
     # save the cfg file in the save path
     with open(os.path.join(save_path, "config.yaml"), "w") as f:
         # write the configuration file

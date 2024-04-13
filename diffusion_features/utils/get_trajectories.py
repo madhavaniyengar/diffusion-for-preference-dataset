@@ -56,12 +56,17 @@ def get_trajectories(data_path: str, train_type: str):
             # remove the adjacent position duplicates
             trajectory = trajectory[~(np.roll(trajectory, 1, axis=0) == trajectory).all(axis=1)]
             if train_type == 'train':
-                condition = data['condition']
-                # convert the list of strings ["8 8", "6 3", "3 7"] to a list of integers [[8, 8], [6, 3], [3, 7]]
-                condition = [list(map(int, c.split())) for c in condition]
-                # convert the list of integers to a numpy array
-                condition = np.array(condition)
-                conditions[file] = condition
+                try: 
+                    condition = data['condition']
+                    # convert the list of strings ["8 8", "6 3", "3 7"] to a list of integers [[8, 8], [6, 3], [3, 7]]
+                    condition = [list(map(int, c.split())) for c in condition]
+                    # convert the list of integers to a numpy array
+                    condition = np.array(condition)
+                    conditions[file] = condition
+                except KeyError:
+                    print("No condition found in the file.", file)
+                    condition = np.zeros((3, 2))
+                    conditions[file] = condition
             elif train_type == 'pretrain':
                 # put the conditions as zeros
                  condition = np.zeros((3, 2))
