@@ -119,6 +119,7 @@ class ConditionalResidualBlock1D(nn.Module):
         out = out + self.residual_conv(x)
         return out
 
+
 class ConditionalUnet1D(nn.Module):
     def __init__(
         self,
@@ -262,11 +263,7 @@ class ConditionalUnet1D(nn.Module):
         global_feature = torch.tensor(global_feature, dtype=torch.float32, device = sample.device)
 
         if global_cond is not None:
-            # move to device
-            global_cond = global_cond.to(sample.device)
             global_feature = torch.cat([global_feature, global_cond], axis=-1)
-            # move to device
-            global_feature = global_feature.to(sample.device)
 
         x = sample
         h = []
