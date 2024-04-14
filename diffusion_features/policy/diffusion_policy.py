@@ -80,9 +80,9 @@ class Diffusion_policy():
             
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         # set the initial condition of the noisy image to the initial trajectory position
-        x_noisy[:, 0, :] = x_start[:, 0, :]
+        # x_noisy[:, 0, :] = x_start[:, 0, :]
         # set the last condition of the noisy image to the last trajectory position
-        x_noisy[:, -1, :] = x_start[:, -1, :]
+        # x_noisy[:, -1, :] = x_start[:, -1, :]
         # print("x_noisy", x_noisy.shape)
         predicted_noise = denoise_model(x_noisy, t, global_cond=condition)
 
@@ -352,18 +352,18 @@ def main(cfg):
     # global_conds = conditions[:cfg.params.num_samples]    
     # global_conds = policy.get_condition(trajectories[:cfg.params.num_samples], global_conds)
     # global_conds = [[1, 1], [8, 8]]
-    # global_conds = torch.tensor([[1, 1, 8, 8]], dtype=torch.float32)
-    global_conds = torch.tensor([[4, 4]], dtype=torch.float32)
-    if cfg.sampling_params.start_position != None and cfg.sampling_params.end_position != None:
+    global_conds = torch.tensor([[1, 1, 8, 8]], dtype=torch.float32)
+    # global_conds = torch.tensor([[4, 4]], dtype=torch.float32)
+    if cfg.sampling_params.start_position != 'None' and cfg.sampling_params.end_position != 'None':
         _, save_path = policy.sample(cfg.sampling_params.num_samples, cfg.params.trajectory_len,\
                                 model, cfg.model_params.output_dim, cfg.paths.save_path, \
                                 global_cond=global_conds, start_pos = cfg.sampling_params.start_position, \
                                 end_pos = cfg.sampling_params.end_position)
-    elif cfg.sampling_params.start_position != None:
+    elif cfg.sampling_params.start_position != 'None':
         _, save_path = policy.sample(cfg.sampling_params.num_samples, cfg.params.trajectory_len,\
                                 model, cfg.model_params.output_dim, cfg.paths.save_path, \
                                 global_cond=global_conds, start_pos = cfg.sampling_params.start_position)
-    elif cfg.sampling_params.end_position != None:
+    elif cfg.sampling_params.end_position != 'None':
         _, save_path = policy.sample(cfg.sampling_params.num_samples, cfg.params.trajectory_len,\
                                 model, cfg.model_params.output_dim, cfg.paths.save_path, \
                                 global_cond=global_conds, end_pos = cfg.sampling_params.end_position)
