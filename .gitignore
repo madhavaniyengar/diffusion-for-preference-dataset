@@ -1,0 +1,3 @@
+.DS_Store
+./diffusion_features/policy/outputs
+./diffusion_features/diffusion_features.egg-info
