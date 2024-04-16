@@ -16,7 +16,7 @@ import numpy as np
 from diffusion_features.utils.schedulers import *
 from diffusion_features.algo.diffusion_utils import ConditionalUnet1D
 from torch.optim import Adam
-from diffusion_features.utils.get_trajectories import get_trajectories, discretize
+from diffusion_features.utils.get_trajectories import get_trajectories, discretize, visualize_trajectory
 
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader
@@ -80,9 +80,9 @@ class Diffusion_policy():
             
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         # set the initial condition of the noisy image to the initial trajectory position
-        x_noisy[:, 0, :] = x_start[:, 0, :]
+        # x_noisy[:, 0, :] = x_start[:, 0, :]
         # set the last condition of the noisy image to the last trajectory position
-        x_noisy[:, -1, :] = x_start[:, -1, :]
+        # x_noisy[:, -1, :] = x_start[:, -1, :]
         # print("x_noisy", x_noisy.shape)
         predicted_noise = denoise_model(x_noisy, t, global_cond=condition)
 
@@ -138,6 +138,7 @@ class Diffusion_policy():
 
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
             img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, global_cond=global_cond)
+            # visualize_trajectory(img[0])
             imgs.append(img.cpu().numpy())
         return imgs
 
@@ -177,6 +178,8 @@ class Diffusion_policy():
         elif self.condition_type == "mid":
             # set the condition to the mid point of the trajectory
             condition = trajectories[:, trajectories.shape[1]//2, :]
+        elif self.condition_type == "None":
+            condition = None
         else:
             raise NotImplementedError("Condition type not implemented")
         return condition
@@ -200,9 +203,11 @@ class Diffusion_policy():
                 # print('input shape pre reshape', batch.shape)
 
                 # batch = batch.reshape(b, channels, batch.shape[1], batch.shape[2])
-                
+                # visualize a random trajectory
+                # visualize_trajectory(trajectories[0])
                 # normalize the trajectories to [-1, 1]
                 trajectories = (trajectories / 8) * 2 - 1
+                # visualize_trajectory(trajectories[0])
                 
                 # generate conditioning based on start and end states
                 # condition = torch.cat((start_states, end_states), axis=1)
@@ -251,6 +256,10 @@ class Diffusion_policy():
                 global_cond = (global_cond / 8) * 2 - 1
         samples = self.sample_trajectories(model, trajectory_length, batch_size=num_samples,\
                                             output_dim=output_dim, global_cond=global_cond, start_pos=start_pos, end_pos=end_pos)
+        print("Samples shape: ", samples[self.timesteps-1].shape)
+
+        # save the samples as a numpy array
+        np.save(os.path.join(save_path, "samples.npy"), samples)        
         sample_ = samples[self.timesteps-1]
         for j in range(sample_.shape[0]):
             sample_[j] = ((sample_[j] + 1) / 2) * 8
@@ -345,7 +354,7 @@ def main(cfg):
     optimizer = Adam(model.parameters(), lr=lr)
     policy = Diffusion_policy(timesteps, scheduler=scheduler, condition_type=cfg.model_params.condition_type)
     ############################# PRE-TRAINING ############################
-    policy.train(model, optimizer, 100, 128, train_data=pretrain_data)
+    policy.train(model, optimizer, 1, 128, train_data=pretrain_data)
     ############################# TRAINING ############################
     # policy.train(model, optimizer, epochs, batch_size, train_data=train_data)
     ############################# SAMPLING ############################
@@ -353,7 +362,13 @@ def main(cfg):
     # global_conds = policy.get_condition(trajectories[:cfg.params.num_samples], global_conds)
     # global_conds = [[1, 1], [8, 8]]
     # global_conds = torch.tensor([[1, 1, 8, 8]], dtype=torch.float32)
-    global_conds = torch.tensor([[4, 4]], dtype=torch.float32)
+    global_conds = torch.tensor([5, 5], dtype=torch.float32)
+    # convert the single global conditioning to the number of samples
+    global_conds = global_conds.repeat(cfg.sampling_params.num_samples, 1)
+    # convert the global_conds to -1 and 1
+    global_conds = torch.div(global_conds, 8) * 2 - 1
+    if cfg.model_params.global_cond_dim == 0:
+        global_conds = None
     if cfg.sampling_params.start_position != None and cfg.sampling_params.end_position != None:
         _, save_path = policy.sample(cfg.sampling_params.num_samples, cfg.params.trajectory_len,\
                                 model, cfg.model_params.output_dim, cfg.paths.save_path, \

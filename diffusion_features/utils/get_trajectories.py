@@ -127,7 +127,6 @@ def visualize_trajectories(trajectories):
         plt.gca().invert_yaxis()
         plt.savefig(f'../../environment/data/lavaenv/{key}/trajectory.png')
 
-
 def visualize_trajectory(trajectory):
     """Visualize the trajectory with points colored in the rainbow spectrum."""
     if isinstance(trajectory, torch.Tensor):

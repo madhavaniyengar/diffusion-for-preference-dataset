@@ -19,7 +19,7 @@ model_params:
       condition_type: "mid"
 
 sampling_params:
-      num_samples: 1
+      num_samples: 8
       start_position: [0.0, 0.0]
       end_position: [8.0, 8.0]
 
